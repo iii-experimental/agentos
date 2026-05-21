@@ -92,8 +92,8 @@ pub async fn set_if_changed(iii: &III, state: &GateState, input: Value) -> Resul
             timeout_ms: None,
         })
         .await
-        .ok()
-        .filter(|v| !v.is_null());
+        .map_err(|e| IIIError::Handler(format!("state::get failed: {e}")))?;
+    let current = if current.is_null() { None } else { Some(current) };
 
     let (should_write, reason) =
         compare_values(current.as_ref(), &req.value, &req.comparison, req.epsilon);
