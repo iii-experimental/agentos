@@ -391,29 +391,40 @@ async fn drain_accumulate(
 }
 
 pub(crate) fn merge_ops(ops: Vec<GateOp>) -> Vec<GateOp> {
+    use std::collections::hash_map::Entry;
+
     let mut set_ops: HashMap<String, Value> = HashMap::new();
     let mut incr_ops: HashMap<String, i64> = HashMap::new();
     let mut decr_ops: HashMap<String, i64> = HashMap::new();
     let mut others: Vec<GateOp> = Vec::new();
+    let mut order: Vec<(u8, String)> = Vec::new();
 
     for op in ops {
         match op {
-            GateOp::Set { path, value } => { set_ops.insert(path, value); }
-            GateOp::Increment { path, by } => { *incr_ops.entry(path).or_default() += by; }
-            GateOp::Decrement { path, by } => { *decr_ops.entry(path).or_default() += by; }
+            GateOp::Set { path, value } => {
+                if set_ops.insert(path.clone(), value).is_none() {
+                    order.push((0, path));
+                }
+            }
+            GateOp::Increment { path, by } => match incr_ops.entry(path.clone()) {
+                Entry::Vacant(e) => { e.insert(by); order.push((1, path)); }
+                Entry::Occupied(mut e) => *e.get_mut() += by,
+            },
+            GateOp::Decrement { path, by } => match decr_ops.entry(path.clone()) {
+                Entry::Vacant(e) => { e.insert(by); order.push((2, path)); }
+                Entry::Occupied(mut e) => *e.get_mut() += by,
+            },
             other => others.push(other),
         }
     }
 
     let mut result = Vec::new();
-    for (path, value) in set_ops {
-        result.push(GateOp::Set { path, value });
-    }
-    for (path, by) in incr_ops {
-        result.push(GateOp::Increment { path, by });
-    }
-    for (path, by) in decr_ops {
-        result.push(GateOp::Decrement { path, by });
+    for (kind, path) in order {
+        match kind {
+            0 => { if let Some(value) = set_ops.remove(&path) { result.push(GateOp::Set { path, value }); } }
+            1 => { if let Some(by) = incr_ops.remove(&path) { result.push(GateOp::Increment { path, by }); } }
+            _ => { if let Some(by) = decr_ops.remove(&path) { result.push(GateOp::Decrement { path, by }); } }
+        }
     }
     result.extend(others);
     result
@@ -639,6 +650,30 @@ mod tests {
             GateOp::Remove { path: "old".into() },
         ];
         assert_eq!(merge_ops(ops).len(), 3);
+    }
+
+    #[test]
+    fn merge_preserves_first_seen_order_across_op_types() {
+        // Increment(x) appears before Set(x) in input; output must not reorder them.
+        let ops = vec![
+            GateOp::Increment { path: "x".into(), by: 5 },
+            GateOp::Set { path: "y".into(), value: json!("hello") },
+            GateOp::Set { path: "x".into(), value: json!(99) },
+        ];
+        let merged = merge_ops(ops);
+        assert_eq!(merged.len(), 3);
+        match &merged[0] {
+            GateOp::Increment { path, by } => { assert_eq!(path, "x"); assert_eq!(*by, 5); }
+            _ => panic!("expected Increment(x) first"),
+        }
+        match &merged[1] {
+            GateOp::Set { path, value } => { assert_eq!(path, "y"); assert_eq!(*value, json!("hello")); }
+            _ => panic!("expected Set(y) second"),
+        }
+        match &merged[2] {
+            GateOp::Set { path, value } => { assert_eq!(path, "x"); assert_eq!(*value, json!(99)); }
+            _ => panic!("expected Set(x) third"),
+        }
     }
 
     // batch_commit deduplication
