@@ -358,13 +358,13 @@ async fn drain_accumulate(
         let merged = merge_ops(ops);
         let count = merged.len();
         let ops_json: Vec<Value> = merged
-            .into_iter()
+            .iter()
             .filter_map(|op| serde_json::to_value(op).ok())
             .collect();
 
         tracing::info!(scope = %scope, key = %key_str, count, "gate accumulate drain");
 
-        let _ = iii
+        let result = iii
             .trigger(TriggerRequest {
                 function_id: "state::update".to_string(),
                 payload: json!({
@@ -376,6 +376,16 @@ async fn drain_accumulate(
                 timeout_ms: None,
             })
             .await;
+
+        if result.is_err() {
+            if let Some(mut e) = state.accumulate.get_mut(&map_key) {
+                let mut recovered = merged;
+                recovered.append(&mut e.pending);
+                e.pending = recovered;
+                e.in_flight = false;
+            }
+            break;
+        }
         // Loop to pick up ops that arrived while we were writing.
     }
 }
