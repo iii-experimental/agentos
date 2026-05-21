@@ -62,7 +62,7 @@ registerFunction(
     // First call always writes (key absent).
     const calls: Promise<{ written: boolean; reason: string }>[] = [];
     for (let i = 0; i < 10; i++) {
-      // Confidence oscillates between 0.85–0.86 — within epsilon, no write.
+      // Confidence oscillates between 0.85–0.855 — within epsilon, no write.
       const confidence = 0.85 + (i % 2) * 0.005;
       calls.push(
         trigger({

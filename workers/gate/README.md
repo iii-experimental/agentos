@@ -205,7 +205,7 @@ commit the survivors in parallel.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `operations` | array | yes | Array of `{ scope, key, value? | op? }` items |
+| `operations` | array | yes | Array of `{ scope, key, value? \| op? }` items |
 
 Each item must have either `value` (maps to `state::set`) or `op` (maps to
 `state::update` with a single operation).

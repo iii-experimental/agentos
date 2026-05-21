@@ -103,10 +103,10 @@ async def run_throttle_scenario(scope: str, service_id: str) -> dict:
     id="demo::sensor_debounce",
     description="Run debounce scenario: 20 sensor readings → 1 state write",
 )
-async def sensor_debounce(input: dict) -> dict:
+async def sensor_debounce(params: dict) -> dict:
     return await run_debounce_scenario(
-        scope=input.get("scope", "sensors"),
-        sensor_id=input.get("sensorId", "temp-001"),
+        scope=params.get("scope", "sensors"),
+        sensor_id=params.get("sensorId", "temp-001"),
     )
 
 
@@ -114,10 +114,10 @@ async def sensor_debounce(input: dict) -> dict:
     id="demo::counter_throttle",
     description="Run throttle scenario: 50 increments in 1 s window → 1 state update",
 )
-async def counter_throttle(input: dict) -> dict:
+async def counter_throttle(params: dict) -> dict:
     return await run_throttle_scenario(
-        scope=input.get("scope", "metrics"),
-        service_id=input.get("serviceId", "api-gateway"),
+        scope=params.get("scope", "metrics"),
+        service_id=params.get("serviceId", "api-gateway"),
     )
 
 

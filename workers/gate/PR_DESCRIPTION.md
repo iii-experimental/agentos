@@ -101,4 +101,4 @@ with stable value → 0 writes"). Benchmarking is documented as future work.
 - Cross-process gate coordination (currently single-process semantics only).
 
 
-Co-authored with with [Claude Code](https://claude.com/claude-code)
+Co-authored with [Claude Code](https://claude.com/claude-code)
