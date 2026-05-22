@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             RegisterFunction::new_async("gate::set_if_changed", move |input: Value| {
                 let iii = iii_ref.clone();
                 let state = state_ref.clone();
-                async move { gate::set_if_changed(&iii, &state, input).await }
+                async move { gate::set_if_changed(&iii, state, input).await }
             })
             .description("Write to state only if the new value differs from current; suppresses redundant trigger fires"),
         );
@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             RegisterFunction::new_async("gate::batch_commit", move |input: Value| {
                 let iii = iii_ref.clone();
                 let state = state_ref.clone();
-                async move { gate::batch_commit(&iii, &state, input).await }
+                async move { gate::batch_commit(&iii, state, input).await }
             })
             .description("Deduplicate a caller-assembled batch of mutations by (scope, key) and commit in parallel"),
         );

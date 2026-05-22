@@ -78,7 +78,7 @@ fn emit_attempt(iii: &III, cfg: &GateConfig, function: &str, scope: &str, key: &
 
 // --- gate::set_if_changed ---
 
-pub async fn set_if_changed(iii: &III, state: &GateState, input: Value) -> Result<Value, IIIError> {
+pub async fn set_if_changed(iii: &III, state: Arc<GateState>, input: Value) -> Result<Value, IIIError> {
     let req: SetIfChangedRequest =
         serde_json::from_value(input).map_err(|e| IIIError::Handler(e.to_string()))?;
 
@@ -432,7 +432,7 @@ pub(crate) fn merge_ops(ops: Vec<GateOp>) -> Vec<GateOp> {
 
 // --- gate::batch_commit ---
 
-pub async fn batch_commit(iii: &III, state: &GateState, input: Value) -> Result<Value, IIIError> {
+pub async fn batch_commit(iii: &III, state: Arc<GateState>, input: Value) -> Result<Value, IIIError> {
     let req: BatchCommitRequest =
         serde_json::from_value(input).map_err(|e| IIIError::Handler(e.to_string()))?;
 
