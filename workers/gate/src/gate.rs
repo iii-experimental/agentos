@@ -459,8 +459,8 @@ pub async fn batch_commit(iii: &III, state: &GateState, input: Value) -> Result<
         join_set.spawn(async move {
             let scope = op.scope.clone();
             let key = op.key.clone();
-            let ok = if let Some(value) = op.value {
-                iii_clone
+            let ok = match (op.value, op.op) {
+                (Some(value), None) => iii_clone
                     .trigger(TriggerRequest {
                         function_id: "state::set".to_string(),
                         payload: json!({ "scope": &scope, "key": &key, "value": value }),
@@ -468,24 +468,24 @@ pub async fn batch_commit(iii: &III, state: &GateState, input: Value) -> Result<
                         timeout_ms: None,
                     })
                     .await
-                    .is_ok()
-            } else if let Some(gate_op) = op.op {
-                let op_json = serde_json::to_value(gate_op).unwrap_or(Value::Null);
-                iii_clone
-                    .trigger(TriggerRequest {
-                        function_id: "state::update".to_string(),
-                        payload: json!({
-                            "scope": &scope,
-                            "key": &key,
-                            "operations": [op_json],
-                        }),
-                        action: None,
-                        timeout_ms: None,
-                    })
-                    .await
-                    .is_ok()
-            } else {
-                false
+                    .is_ok(),
+                (None, Some(gate_op)) => {
+                    let op_json = serde_json::to_value(gate_op).unwrap_or(Value::Null);
+                    iii_clone
+                        .trigger(TriggerRequest {
+                            function_id: "state::update".to_string(),
+                            payload: json!({
+                                "scope": &scope,
+                                "key": &key,
+                                "operations": [op_json],
+                            }),
+                            action: None,
+                            timeout_ms: None,
+                        })
+                        .await
+                        .is_ok()
+                }
+                _ => false,
             };
             (scope, key, ok)
         });
