@@ -81,7 +81,7 @@ custom spans would diverge from the established pattern and requires
 **No benchmark crate.** No existing worker has one; adding `criterion` is a
 workspace-level change outside this worker's scope. The integration test in
 `tests/integration.rs` asserts effective-write counts directly (e.g. "10 calls
-with stable value → 0 writes"). Benchmarking is documented as future work.
+with identical value → 1 write, 9 suppressed"). Benchmarking is documented as future work.
 
 ## Test plan
 
