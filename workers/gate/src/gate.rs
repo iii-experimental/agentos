@@ -430,11 +430,34 @@ pub(crate) fn merge_ops(ops: Vec<GateOp>) -> Vec<GateOp> {
     result
 }
 
+fn validate_batch_ops(operations: &[BatchOp]) -> Result<(), IIIError> {
+    for op in operations {
+        match (&op.value, &op.op) {
+            (Some(_), Some(_)) => {
+                return Err(IIIError::Handler(format!(
+                    "batch_commit: op for ({}, {}) has both value and op set; exactly one required",
+                    op.scope, op.key
+                )));
+            }
+            (None, None) => {
+                return Err(IIIError::Handler(format!(
+                    "batch_commit: op for ({}, {}) has neither value nor op set; exactly one required",
+                    op.scope, op.key
+                )));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 // --- gate::batch_commit ---
 
 pub async fn batch_commit(iii: &III, state: Arc<GateState>, input: Value) -> Result<Value, IIIError> {
     let req: BatchCommitRequest =
         serde_json::from_value(input).map_err(|e| IIIError::Handler(e.to_string()))?;
+
+    validate_batch_ops(&req.operations)?;
 
     // Deduplicate by (scope, key), last write wins.
     let mut seen: HashMap<(String, String), usize> = HashMap::new();
@@ -485,7 +508,7 @@ pub async fn batch_commit(iii: &III, state: Arc<GateState>, input: Value) -> Res
                         .await
                         .is_ok()
                 }
-                _ => false,
+                _ => false, // unreachable: shapes validated above
             };
             (scope, key, ok)
         });
@@ -513,7 +536,7 @@ mod tests {
     use dashmap::DashMap;
     use serde_json::json;
 
-    use super::{compare_values, merge_ops, DebounceKey};
+    use super::{compare_values, merge_ops, validate_batch_ops, DebounceKey};
     use crate::structs::{BatchOp, DebounceEntry, GateOp};
 
     // set_if_changed comparison
@@ -712,6 +735,30 @@ mod tests {
             }
         }
         out
+    }
+
+    // batch_commit shape validation
+
+    #[test]
+    fn batch_validate_rejects_both_set() {
+        let ops = vec![BatchOp {
+            scope: "s".into(),
+            key: "k".into(),
+            value: Some(json!(1)),
+            op: Some(GateOp::Remove { path: "x".into() }),
+        }];
+        assert!(validate_batch_ops(&ops).is_err());
+    }
+
+    #[test]
+    fn batch_validate_rejects_neither_set() {
+        let ops = vec![BatchOp {
+            scope: "s".into(),
+            key: "k".into(),
+            value: None,
+            op: None,
+        }];
+        assert!(validate_batch_ops(&ops).is_err());
     }
 
     // wire-format serialization (serde round-trip catches field-name regressions)
