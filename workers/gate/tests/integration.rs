@@ -15,6 +15,15 @@ use serde_json::json;
 //
 // The functions under test are `pub(crate)` in gate.rs; we test the same logic
 // via duplicate thin wrappers below so the integration test is self-contained.
+//
+// Wrapper → canonical mapping:
+//   compare(..)  →  gate::compare_values        (gate.rs) — unit-tested in gate::tests
+//   dedup(..)    →  batch_commit dedup loop      (gate.rs) — unit-tested in gate::tests
+//   merge(..)    →  gate::merge_ops              (gate.rs) — unit-tested in gate::tests
+//
+// The canonical implementations in gate.rs are the source of truth. If you
+// refactor compare_values, merge_ops, or the batch_commit dedup loop, update
+// the corresponding wrappers in this file to keep them in sync.
 
 use serde_json::Value;
 use std::collections::HashMap;
