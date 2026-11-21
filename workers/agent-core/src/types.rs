@@ -10,6 +10,12 @@ pub struct ChatRequest {
     pub session_id: Option<String>,
     #[serde(rename = "systemPrompt")]
     pub system_prompt: Option<String>,
+    #[serde(
+        rename = "maxCostUsd",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub max_cost_usd: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -94,6 +100,7 @@ mod tests {
             message: "test".to_string(),
             session_id: Some("s-1".to_string()),
             system_prompt: None,
+            max_cost_usd: None,
         };
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["agentId"], "a-1");
@@ -246,6 +253,7 @@ mod tests {
             message: "hello".to_string(),
             session_id: Some("s1".to_string()),
             system_prompt: Some("prompt".to_string()),
+            max_cost_usd: None,
         };
         let json_str = serde_json::to_string(&req).unwrap();
         let roundtripped: ChatRequest = serde_json::from_str(&json_str).unwrap();
@@ -480,6 +488,7 @@ mod tests {
             message: "".to_string(),
             session_id: Some("".to_string()),
             system_prompt: Some("".to_string()),
+            max_cost_usd: None,
         };
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["agentId"], "");
