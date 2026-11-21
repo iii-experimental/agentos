@@ -56,6 +56,8 @@ pub struct HandAgent {
     #[serde(default)]
     pub max_iterations: Option<u64>,
     #[serde(default)]
+    pub max_cost_usd: Option<f64>,
+    #[serde(default)]
     pub temperature: Option<f64>,
     #[serde(default)]
     pub system_prompt: String,

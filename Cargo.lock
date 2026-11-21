@@ -457,6 +457,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "iii-sdk",
+ "llm-budget",
  "serde",
  "serde_json",
  "tokio",
@@ -2777,6 +2778,25 @@ name = "litemap"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6373607a59f0be73a39b6fe456b8192fcc3585f602af20751600e974dd455e77"
+
+[[package]]
+name = "llm-budget"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0dc5da5b440da690a3fe3cbef4e3a7a52a3ad5f7c37b456feb3d048abf384244"
+dependencies = [
+ "llm-prices",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "llm-prices"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8687beff4d5ceb2b1a5fc5f242df4f2c107ca92609f47d30fab584591157d9dd"
 
 [[package]]
 name = "lock_api"

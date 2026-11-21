@@ -1,5 +1,6 @@
 use iii_sdk::{III, InitOptions, RegisterFunction, RegisterTriggerInput, TriggerRequest, register_worker};
 use iii_sdk::error::IIIError;
+use llm_budget::AgentBudget;
 use serde_json::{json, Value};
 use std::time::Instant;
 
@@ -131,6 +132,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn agent_chat(iii: &III, req: ChatRequest) -> Result<Value, IIIError> {
     let start = Instant::now();
+    let budget = req
+        .max_cost_usd
+        .map(|cap| AgentBudget::builder(req.agent_id.clone(), cap).build())
+        .transpose()
+        .map_err(|e| IIIError::Handler(e.to_string()))?;
 
     let config: Option<AgentConfig> = iii
         .trigger(TriggerRequest {
@@ -229,7 +235,10 @@ async fn agent_chat(iii: &III, req: ChatRequest) -> Result<Value, IIIError> {
     let mut iterations: u32 = 0;
 
     while let Some(tool_calls) = response.get("toolCalls").and_then(|v| v.as_array()) {
-        if tool_calls.is_empty() || iterations >= MAX_ITERATIONS {
+        if tool_calls.is_empty()
+            || iterations >= MAX_ITERATIONS
+            || over_budget(budget.as_ref(), &response).await
+        {
             break;
         }
         iterations += 1;
@@ -427,10 +436,45 @@ async fn list_functions(iii: &III, agent_id: &str) -> Result<Value, IIIError> {
     Ok(json!(filtered))
 }
 
+/// Books one llm::complete response against the run's dollar cap.
+/// True once the cap is spent or the model cannot be priced.
+async fn over_budget(budget: Option<&AgentBudget>, response: &Value) -> bool {
+    let Some(budget) = budget else { return false };
+    let model = response["model"].as_str().unwrap_or("");
+    let input = response["usage"]["input"].as_u64().unwrap_or(0) as u32;
+    let output = response["usage"]["output"].as_u64().unwrap_or(0) as u32;
+    match budget.charge_model(model, input, output, None, None).await {
+        Ok(_) => false,
+        Err(e) => {
+            tracing::warn!(error = %e, "agent run stopped by dollar cap");
+            true
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use types::{ModelConfig, Capabilities, Resources};
+
+    #[tokio::test]
+    async fn test_dollar_cap_stops_loop() {
+        let response = json!({
+            "model": "claude-sonnet-4-20250514",
+            "usage": { "input": 10_000, "output": 1_000, "total": 11_000 },
+        });
+        assert!(!over_budget(None, &response).await);
+
+        // $0.045 per turn against a $0.10 cap: two turns fit, the third stops the loop.
+        let budget = AgentBudget::builder("hand", 0.10).build().unwrap();
+        assert!(!over_budget(Some(&budget), &response).await);
+        assert!(!over_budget(Some(&budget), &response).await);
+        assert!(over_budget(Some(&budget), &response).await);
+
+        let unpriced = json!({ "model": "no-such-model", "usage": { "input": 1, "output": 1 } });
+        let budget = AgentBudget::builder("hand", 1.0).build().unwrap();
+        assert!(over_budget(Some(&budget), &unpriced).await);
+    }
 
     #[test]
     fn test_max_iterations_constant() {

@@ -103,6 +103,7 @@ async fn run_hand(iii: &III, hand: Hand) -> Result<Value, IIIError> {
                 "systemPrompt": hand.agent.system_prompt,
                 "temperature": hand.agent.temperature,
                 "maxIterations": hand.agent.max_iterations,
+                "maxCostUsd": hand.agent.max_cost_usd,
                 "model": hand.agent.model,
             }),
             action: None,
